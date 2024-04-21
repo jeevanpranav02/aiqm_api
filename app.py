@@ -187,5 +187,6 @@ def predict_method():
         )
 
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
+# For the use of Gunicorn in OnRender
+# if __name__ == "__main__":
+#     app.run(debug=True, host="0.0.0.0")
