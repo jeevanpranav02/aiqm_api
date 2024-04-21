@@ -6,6 +6,7 @@ os.environ[
 ] = "2"  # Suppress TensorFlow warnings and info messages
 
 import numpy as np
+from logger import Logger
 import pandas as pd
 import tensorflow as tf
 from flask import Flask, jsonify, request
@@ -14,29 +15,36 @@ from sklearn.preprocessing import MinMaxScaler
 # Initialize Flask app
 app = Flask(__name__)
 
+logger = Logger("/tmp/api.log")
+
 
 class ModelPredictor:
     def __init__(self, model_path: str):
-        self.model = tf.keras.models.load_model(model_path)
-        self.sc = MinMaxScaler(feature_range=(0, 1))
-        df = pd.read_csv("data/AirQDataset.csv")
-        # print(df.head())
-        df["Timestamp"] = pd.to_datetime(df["Timestamp"])
-        df["Date"] = df["Timestamp"].dt.date
+        try:
+            self.model = tf.keras.models.load_model(model_path)
+            self.sc = MinMaxScaler(feature_range=(0, 1))
+            df = pd.read_csv("data/AirQDataset.csv")
+            # print(df.head())
+            df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+            df["Date"] = df["Timestamp"].dt.date
 
-        df_date = pd.DataFrame(df.groupby("Date")["PM2.5"].mean())
-        df_date
+            df_date = pd.DataFrame(df.groupby("Date")["PM2.5"].mean())
+            df_date
 
-        dataset = df_date.values
-        self.sc.fit(dataset)
+            dataset = df_date.values
+            self.sc.fit(dataset)
+        except Exception as e:
+            logger.log(f"Error loading model: {str(e)}")
+            logger.log(traceback.format_exc())
+            logger.log("Exiting program")
 
     def parse_input(self, input_data: str):
         input_data_str = str(input_data)
         # Parsing input
         string_data_list = input_data_str[1 : len(input_data_str) - 1].split(",")
-        print("input_data in list : ", string_data_list)
+        logger.log(f"Input data: {string_data_list}")
         input_data = [[float(i.strip())] for i in string_data_list]
-        print("input_data as float list : ", input_data)
+        logger.log(f"Input data as float list: {input_data}")
 
         # Preparing model for prediction with a sample input
         input_sequence = np.array(
@@ -110,11 +118,11 @@ class ModelPredictor:
         prediction = self.sc.inverse_transform(prediction)
         # Parsing the string to float
         input_sequence = np.array(input_data)
-        print("input_sequence (before reshaping): ", input_sequence)
+        logger.log(f"Input sequence(before): {input_sequence}")
 
         # Check for NaN values in input_sequence
         if np.isnan(input_sequence).any():
-            print("Input sequence contains NaN values!")
+            logger.log("Input sequence contains NaN values!")
             return None
 
         for i in range(len(input_sequence)):
@@ -122,7 +130,7 @@ class ModelPredictor:
         input_sequence = input_sequence.reshape(
             1, input_sequence.shape[0], input_sequence.shape[1]
         )
-        print("input_sequence (after reshaping): ", input_sequence)
+        logger.log(f"Input sequence(after): {input_sequence}")
         return input_sequence
 
     def predict(self, input_data):
@@ -130,8 +138,9 @@ class ModelPredictor:
             prediction = self.model.predict(input_data)
             return prediction
         except Exception as e:
-            print(str(e))
             traceback.print_exc()
+            logger.log(f"Error predicting: {str(e)}")
+            logger.log(traceback.format_exc())
             return None
 
 
@@ -160,13 +169,12 @@ def predict_method():
 
         # Parse input data
         data = model_predictor.parse_input(input_sequence)
-        print("parsed data inside api : ", data)
 
         # Make prediction
         prediction = model_predictor.predict(data)
         prediction = model_predictor.sc.inverse_transform(prediction)
         if prediction is not None:
-            print("Prediction:", prediction[0][0])
+            logger.log(f"Prediction: {prediction[0][0]}")
 
         return jsonify(
             {
@@ -174,7 +182,7 @@ def predict_method():
             }
         )
     except Exception as e:
-        print(str(e))
+        logger.log(f"Error: {str(e)}")
         return (
             jsonify(
                 {
