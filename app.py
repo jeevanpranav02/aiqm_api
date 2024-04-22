@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 # Initialize Flask app
 app = Flask(__name__)
 
-logger = Logger("$HOME/log/api.log")
+logger = Logger(str(os.environ["HOME"]) + "/log/api.log")
 
 
 class ModelPredictor:
@@ -151,6 +151,7 @@ model_predictor = ModelPredictor(model_path)
 
 @app.route("/")
 def index():
+    logger.log("API is running fine!")
     return "Welcome to the API!"
 
 
