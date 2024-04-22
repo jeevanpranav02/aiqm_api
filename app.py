@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 # Initialize Flask app
 app = Flask(__name__)
 
-logger = Logger("/tmp/api.log")
+logger = Logger("api.log")
 
 
 class ModelPredictor:
